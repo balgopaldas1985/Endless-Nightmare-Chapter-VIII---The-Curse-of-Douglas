@@ -1,524 +1,523 @@
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
     <title>Endless Nightmare VIII: The Curse of Douglas</title>
     
-    <!-- Babylon.js Core, Loaders & Materials -->
+    <!-- BabylonJS Core Engine -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
-    <script src="https://cdn.babylonjs.com/proceduralTextures/babylonjs.proceduralTextures.min.js"></script>
-
+    
     <style>
-        * {
-            box-sizing: border-box;
-            user-select: none;
-            -webkit-user-select: none;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background-color: #000; font-family: 'Courier New', Courier, monospace; touch-action: none; }
 
-        html, body {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #000;
-            font-family: 'Courier New', Courier, monospace;
-            touch-action: none;
-        }
+        #renderCanvas { width: 100%; height: 100%; display: block; touch-action: none; }
 
-        #renderCanvas {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-
-        /* HUD & Overlay System */
-        #uiOverlay {
+        /* Start Overlay */
+        #blocker {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 2, 2, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            text-align: center;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        #startContent h1 {
+            font-size: 2.2rem;
+            color: #ff1111;
+            text-shadow: 0 0 15px #ff0000;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        #startContent p { font-size: 0.95rem; margin-bottom: 25px; color: #aaa; line-height: 1.4; }
+
+        #startBtn {
+            padding: 18px 36px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(180deg, #bb0000, #550000);
+            border: 2px solid #ff3333;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+            cursor: pointer;
+            letter-spacing: 1px;
+        }
+
+        /* Game HUD Overlay */
+        #hudOverlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
             z-index: 10;
+            display: none; /* Shown after starting */
         }
 
-        /* Top HUD Bar */
-        #hudHeader {
+        #hudStats {
             position: absolute;
-            top: 15px;
-            left: 15px;
-            right: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
+            top: 15px; left: 15px;
             color: #ff3333;
-            text-shadow: 0 0 8px #ff0000;
+            font-weight: bold;
+            text-shadow: 0 0 8px #000;
         }
 
-        .hud-panel {
-            background: rgba(10, 0, 0, 0.75);
-            padding: 10px 14px;
-            border: 1px solid #770000;
-            border-radius: 6px;
-            box-shadow: 0 0 15px rgba(255, 0, 0, 0.2);
-        }
-
-        .bar-container {
-            width: 160px;
-            height: 12px;
-            background: rgba(30, 0, 0, 0.8);
+        .bar-bg {
+            width: 160px; height: 12px;
+            background: rgba(40,0,0,0.8);
             border: 1px solid #ff3333;
+            margin-top: 5px;
             border-radius: 3px;
-            margin-top: 4px;
             overflow: hidden;
         }
+        #healthBar { width: 100%; height: 100%; background: #ff2222; }
 
-        #healthBar {
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, #880000, #ff3333);
-            transition: width 0.2s ease-out;
-        }
-
-        #batteryBar {
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, #0088aa, #00f0ff);
-            transition: width 0.2s ease-out;
-        }
-
-        /* Mission Objective Display */
-        #missionTracker {
+        #missionText {
             position: absolute;
-            top: 85px;
-            left: 15px;
+            top: 15px; right: 15px;
             color: #ffcc00;
-            background: rgba(15, 10, 0, 0.85);
-            padding: 8px 12px;
-            border-left: 4px solid #ffcc00;
-            font-size: 13px;
-            border-radius: 0 6px 6px 0;
-            max-width: 280px;
-            text-shadow: 0 0 5px rgba(255, 204, 0, 0.5);
+            font-size: 0.85rem;
+            text-align: right;
+            text-shadow: 0 0 5px #000;
         }
 
-        /* Crosshair */
-        #crosshair {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 6px;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.7);
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 4px #ffffff;
-        }
-
-        /* Mobile Controls Overlay */
+        /* Touch Controls */
         #joystickZone {
             position: absolute;
-            bottom: 25px;
-            left: 25px;
-            width: 120px;
-            height: 120px;
+            bottom: 25px; left: 25px;
+            width: 120px; height: 120px;
             background: rgba(255, 255, 255, 0.08);
-            border: 2px solid rgba(255, 50, 50, 0.3);
+            border: 2px solid rgba(255, 50, 50, 0.4);
             border-radius: 50%;
             pointer-events: auto;
         }
-
         #joystickKnob {
             position: absolute;
-            top: 35px;
-            left: 35px;
-            width: 50px;
-            height: 50px;
-            background: rgba(200, 0, 0, 0.6);
+            top: 35px; left: 35px;
+            width: 50px; height: 50px;
+            background: rgba(255, 0, 0, 0.5);
             border: 2px solid #ff3333;
             border-radius: 50%;
-            box-shadow: 0 0 10px #ff0000;
         }
 
-        #cameraZone {
+        #cameraTouchZone {
             position: absolute;
-            top: 0;
-            right: 0;
-            width: 55%;
-            height: 100%;
+            top: 0; right: 0;
+            width: 65%; height: 100%;
             pointer-events: auto;
         }
 
-        /* Touch Action Buttons */
         .action-btn {
             position: absolute;
+            width: 70px; height: 70px;
             border-radius: 50%;
-            background: rgba(20, 0, 0, 0.8);
+            background: rgba(30, 0, 0, 0.75);
             border: 2px solid #ff3333;
             color: #fff;
             font-weight: bold;
             font-size: 11px;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
+            text-align: center;
             pointer-events: auto;
-            box-shadow: 0 0 12px rgba(255, 0, 0, 0.4);
-            text-shadow: 0 0 5px #ff0000;
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.4);
+        }
+        .action-btn:active { background: #ff0000; }
+
+        #btnAttack { bottom: 30px; right: 30px; width: 85px; height: 85px; font-size: 13px; color: #ffcc00; border-color: #ffcc00; }
+        #btnJump { bottom: 130px; right: 25px; }
+        #btnLight { bottom: 120px; right: 115px; }
+
+        #crosshair {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 6px; height: 6px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
         }
 
-        .action-btn:active {
-            background: #aa0000;
-            transform: scale(0.92);
-        }
-
-        #btnKungFu { bottom: 35px; right: 35px; width: 85px; height: 85px; font-size: 13px; border-color: #ffcc00; color: #ffcc00; box-shadow: 0 0 15px rgba(255, 204, 0, 0.5); }
-        #btnCrouch { bottom: 135px; right: 25px; width: 65px; height: 65px; }
-        #btnJump { bottom: 40px; right: 135px; width: 65px; height: 65px; }
-        #btnFlashlight { bottom: 135px; right: 105px; width: 65px; height: 65px; border-color: #00f0ff; color: #00f0ff; }
-
-        /* Start Screen / Game Over Screens */
-        .modal-screen {
+        /* Jumpscare Screen */
+        #jumpscare {
+            display: none;
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(5, 0, 0, 0.95);
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
+            background: #000;
+            z-index: 2000;
             justify-content: center;
             align-items: center;
-            color: #ff3333;
-            text-align: center;
-            padding: 20px;
+            flex-direction: column;
+            color: #ff0000;
         }
-
-        .modal-screen h1 {
-            font-size: 2.5rem;
-            letter-spacing: 3px;
-            text-shadow: 0 0 20px #ff0000;
-            margin-bottom: 10px;
-        }
-
-        .modal-screen p {
-            color: #ccc;
-            max-width: 500px;
-            line-height: 1.5;
-            margin-bottom: 25px;
-            font-size: 14px;
-        }
-
-        .primary-btn {
-            padding: 14px 28px;
-            background: #550000;
-            border: 2px solid #ff3333;
-            color: #fff;
-            font-size: 1.1rem;
-            font-family: inherit;
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 4px;
-            box-shadow: 0 0 15px #ff0000;
-            transition: all 0.2s;
-        }
-
-        .primary-btn:hover, .primary-btn:active {
-            background: #ff0000;
-            color: #000;
-            box-shadow: 0 0 25px #ff0000;
-        }
-
-        #jumpscareOverlay {
-            display: none;
-            background: #000;
-        }
-
-        #jumpscareFace {
-            font-size: 8rem;
-            animation: shake 0.1s infinite;
-        }
-
-        @keyframes shake {
-            0% { transform: translate(2px, 2px) rotate(0deg); }
-            50% { transform: translate(-3px, -2px) rotate(3deg); }
-            100% { transform: translate(1px, -1px) rotate(-2deg); }
-        }
+        #jumpscare h1 { font-size: 3rem; text-shadow: 0 0 25px #ff0000; margin-bottom: 20px; }
+        #btnRetry { padding: 15px 30px; background: #440000; border: 2px solid #ff0000; color: #fff; font-size: 1.2rem; }
     </style>
 </head>
 <body>
 
-    <!-- 3D WebGL Canvas -->
     <canvas id="renderCanvas"></canvas>
 
-    <!-- UI Overlay -->
-    <div id="uiOverlay">
-        <div id="hudHeader">
-            <div class="hud-panel">
-                <div style="font-size: 11px; font-weight: bold;">VITALS</div>
-                <div class="bar-container"><div id="healthBar"></div></div>
-            </div>
-            <div class="hud-panel" style="text-align: right;">
-                <div style="font-size: 11px; font-weight: bold; color: #00f0ff;">FLASHLIGHT</div>
-                <div class="bar-container"><div id="batteryBar"></div></div>
-            </div>
+    <!-- Start Overlay -->
+    <div id="blocker">
+        <div id="startContent">
+            <h1>ENDLESS NIGHTMARE VIII</h1>
+            <p>The Curse of Douglas<br><br>Explore dark corridors, collect keys, and use martial strikes to defeat the spectral demon.</p>
+            <button id="startBtn">ENTER NIGHTMARE</button>
+        </div>
+    </div>
+
+    <!-- HUD Overlay -->
+    <div id="hudOverlay">
+        <div id="hudStats">
+            <div>HEALTH</div>
+            <div class="bar-bg"><div id="healthBar"></div></div>
         </div>
 
-        <div id="missionTracker">
-            <div style="font-size: 10px; color: #aaa;">OBJECTIVE:</div>
-            <div id="objectiveText">Mission 1: Find the Old Master's Shrine Key.</div>
+        <div id="missionText">
+            MISSION 1<br>
+            <span id="keyCounter" style="color:#fff;">Keys: 0 / 3</span>
         </div>
 
         <div id="crosshair"></div>
-
-        <!-- Touch Controls -->
         <div id="joystickZone"><div id="joystickKnob"></div></div>
-        <div id="cameraZone"></div>
+        <div id="cameraTouchZone"></div>
 
-        <button id="btnKungFu" class="action-btn">MARTIAL<br>STRIKE</button>
-        <button id="btnCrouch" class="action-btn">STEALTH</button>
+        <button id="btnAttack" class="action-btn">MARTIAL<br>STRIKE</button>
         <button id="btnJump" class="action-btn">JUMP</button>
-        <button id="btnFlashlight" class="action-btn">LIGHT</button>
+        <button id="btnLight" class="action-btn">LIGHT</button>
     </div>
 
-    <!-- Start / Story Screen -->
-    <div id="startScreen" class="modal-screen">
-        <h1>ENDLESS NIGHTMARE VIII</h1>
-        <div style="color: #ff9900; font-size: 1.1rem; margin-bottom: 15px;">- THE CURSE OF DOUGLAS -</div>
-        <p>You have awakened inside the Douglas family cursed sanctuary. A bloodthirsty fiend haunts these dark corridors. Use your martial arts strikes, stealth, and flashlight to survive through all 3 missions and escape the curse.</p>
-        <button id="btnStartGame" class="primary-btn">ENTER THE NIGHTMARE</button>
+    <!-- Jumpscare Screen -->
+    <div id="jumpscare">
+        <h1>YOU WERE CONSUMED</h1>
+        <button id="btnRetry" onclick="location.reload()">TRY AGAIN</button>
     </div>
 
-    <!-- Jumpscare / Game Over Screen -->
-    <div id="jumpscareOverlay" class="modal-screen">
-        <div id="jumpscareFace">👺</div>
-        <h1 style="margin-top: 20px;">YOU WERE CONSUMED</h1>
-        <p id="deathReason">The spectral Douglas fiend ambushed you in the dark...</p>
-        <button id="btnRestart" class="primary-btn">RETRY CHAPTER</button>
-    </div>
-
-    <!-- Game Logic Engine Script -->
     <script>
-        // --- Web Audio API Procedural Horror Synthesizer ---
-        const SoundFX = {
+        // --- Web Audio Generator ---
+        const SoundEngine = {
             ctx: null,
             init() {
                 if (!this.ctx) {
                     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
                 }
-            },
-            playWindNoise() {
-                if (!this.ctx) return;
-                let bufferSize = this.ctx.sampleRate * 2;
-                let buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-                let output = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    output[i] = Math.random() * 2 - 1;
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
                 }
-                let whiteNoise = this.ctx.createBufferSource();
-                whiteNoise.buffer = buffer;
-                whiteNoise.loop = true;
-
-                let filter = this.ctx.createBiquadFilter();
-                filter.type = 'bandpass';
-                filter.frequency.setValueAtTime(300, this.ctx.currentTime);
-                filter.Q.setValueAtTime(3.0, this.ctx.currentTime);
-
-                let gain = this.ctx.createGain();
-                gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
-
-                whiteNoise.connect(filter);
-                filter.connect(gain);
-                gain.connect(this.ctx.destination);
-                whiteNoise.start();
             },
-            playKungFuStrike() {
+            playStrike() {
                 if (!this.ctx) return;
                 let osc = this.ctx.createOscillator();
                 let gain = this.ctx.createGain();
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(350, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(60, this.ctx.currentTime + 0.18);
+                osc.frequency.exponentialRampToValueAtTime(60, this.ctx.currentTime + 0.15);
                 gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.18);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.18);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.15);
             },
-            playHitImpact() {
+            playHit() {
+                if (!this.ctx) return;
+                let bufferSize = this.ctx.sampleRate * 0.12;
+                let buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                let output = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+                let whiteNoise = this.ctx.createBufferSource();
+                whiteNoise.buffer = buffer;
+                let gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.8, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+                whiteNoise.connect(gain); gain.connect(this.ctx.destination);
+                whiteNoise.start();
+            },
+            playClick() {
                 if (!this.ctx) return;
                 let osc = this.ctx.createOscillator();
                 let gain = this.ctx.createGain();
                 osc.type = 'triangle';
-                osc.frequency.setValueAtTime(120, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.25);
-                gain.gain.setValueAtTime(0.9, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.25);
-            },
-            playFlashlightToggle() {
-                if (!this.ctx) return;
-                let osc = this.ctx.createOscillator();
-                let gain = this.ctx.createGain();
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(1000, this.ctx.currentTime);
-                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.04);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.04);
-            },
-            playJumpscareScream() {
-                if (!this.ctx) return;
-                let osc = this.ctx.createOscillator();
-                let gain = this.ctx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(800, this.ctx.currentTime);
-                osc.frequency.linearRampToValueAtTime(200, this.ctx.currentTime + 0.8);
-                gain.gain.setValueAtTime(1.0, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.8);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.8);
-            },
-            playPickupKey() {
-                if (!this.ctx) return;
-                let osc = this.ctx.createOscillator();
-                let gain = this.ctx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(587.33, this.ctx.currentTime); // D5
-                osc.frequency.setValueAtTime(880, this.ctx.currentTime + 0.1); // A5
-                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.3);
+                osc.frequency.setValueAtTime(1200, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.05);
             }
         };
 
-        // --- 3D Babylon.js Game State & Variables ---
+        // --- 3D Canvas Engine ---
         const canvas = document.getElementById("renderCanvas");
         const engine = new BABYLON.Engine(canvas, true);
 
-        let scene, camera, flashlight;
-        let rightFist, leftFist;
-        let ghostEntity, ghostHealth = 100;
-        let keyItemMesh, talismanMesh, ritualDoorMesh;
-        
-        // Gameplay Variables
-        let currentMission = 1; // 1: Key Search, 2: Defeat Fiend, 3: Escape Ritual Door
-        let playerHealth = 100;
-        let batteryPower = 100;
-        let isCrouching = false;
-        let isAttacking = false;
-        let hasShrineKey = false;
-        let hasTalisman = false;
-        let isGameActive = false;
+        let keysCollected = 0;
+        const totalKeys = 3;
+        const keysArray = [];
 
-        // Mobile Controls Variables
-        let joyX = 0, joyY = 0;
-        let joyTouchId = null;
-
-        const createHorrorScene = function () {
+        const createScene = function () {
             const scene = new BABYLON.Scene(engine);
-            scene.clearColor = new BABYLON.Color3(0.01, 0.01, 0.02);
+            scene.clearColor = new BABYLON.Color3(0.05, 0.03, 0.04);
             
-            // Atmospheric Horror Fog
+            // Horror Fog
             scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
-            scene.fogDensity = 0.07;
-            scene.fogColor = new BABYLON.Color3(0.01, 0.01, 0.02);
+            scene.fogDensity = 0.06;
+            scene.fogColor = new BABYLON.Color3(0.05, 0.03, 0.04);
 
             // First Person Camera
-            camera = new BABYLON.UniversalCamera("playerCam", new BABYLON.Vector3(0, 1.7, -12), scene);
+            const camera = new BABYLON.UniversalCamera("playerCam", new BABYLON.Vector3(0, 1.7, -10), scene);
             camera.minZ = 0.2;
-            camera.fov = 1.1;
 
-            // Flashlight Cone Light
-            flashlight = new BABYLON.SpotLight("flashlight", new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0, 0, 1), Math.PI / 3.2, 18, scene);
-            flashlight.intensity = 2.8;
-            flashlight.diffuse = new BABYLON.Color3(1, 0.85, 0.65);
+            // Flashlight
+            const flashlight = new BABYLON.SpotLight("flashlight", new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0, 0, 1), Math.PI / 2.8, 15, scene);
+            flashlight.intensity = 3.5;
+            flashlight.diffuse = new BABYLON.Color3(1, 0.95, 0.8);
             flashlight.parent = camera;
 
-            // Dim Horror Ambient Light
-            const ambientLight = new BABYLON.HemisphericLight("ambientLight", new BABYLON.Vector3(0, 1, 0), scene);
-            ambientLight.intensity = 0.12;
-            ambientLight.diffuse = new BABYLON.Color3(0.2, 0.1, 0.1);
+            // Ambient Horror Lighting
+            const ambient = new BABYLON.HemisphericLight("ambient", new BABYLON.Vector3(0, 1, 0), scene);
+            ambient.intensity = 0.35;
 
-            // --- 3D Mansion Architecture ---
-            const floorMat = new BABYLON.StandardMaterial("floorMat", scene);
-            floorMat.diffuseColor = new BABYLON.Color3(0.12, 0.1, 0.08);
-            floorMat.roughness = 0.9;
+            // --- Maze Environment Construction ---
+            const gridMat = new BABYLON.GridMaterial("gridMat", scene);
+            gridMat.mainColor = new BABYLON.Color3(0.12, 0.1, 0.12);
+            gridMat.lineColor = new BABYLON.Color3(0.25, 0.2, 0.2);
+            gridMat.gridRatio = 1.5;
 
             const wallMat = new BABYLON.StandardMaterial("wallMat", scene);
-            wallMat.diffuseColor = new BABYLON.Color3(0.18, 0.12, 0.12);
-            wallMat.roughness = 0.85;
+            wallMat.diffuseColor = new BABYLON.Color3(0.2, 0.12, 0.12);
 
             // Floor & Ceiling
-            const floor = BABYLON.MeshBuilder.CreateGround("floor", { width: 36, height: 36 }, scene);
-            floor.material = floorMat;
+            const floor = BABYLON.MeshBuilder.CreateGround("floor", { width: 40, height: 40 }, scene);
+            floor.material = gridMat;
 
-            const ceiling = BABYLON.MeshBuilder.CreateGround("ceiling", { width: 36, height: 36 }, scene);
-            ceiling.position.y = 4.2;
+            const ceiling = BABYLON.MeshBuilder.CreateGround("ceiling", { width: 40, height: 40 }, scene);
+            ceiling.position.y = 4;
             ceiling.rotation.x = Math.PI;
             ceiling.material = wallMat;
 
-            // Wall Construction Helper
-            const buildWall = (name, x, z, w, d) => {
-                let wall = BABYLON.MeshBuilder.CreateBox(name, { width: w, height: 4.2, depth: d }, scene);
-                wall.position = new BABYLON.Vector3(x, 2.1, z);
+            // Walls Construction
+            const createBoxWall = (x, z, w, d) => {
+                let wall = BABYLON.MeshBuilder.CreateBox("wall", { width: w, height: 4, depth: d }, scene);
+                wall.position = new BABYLON.Vector3(x, 2, z);
                 wall.material = wallMat;
                 return wall;
             };
 
-            // Outer Mansion Walls
-            buildWall("wNorth", 0, 18, 36, 0.8);
-            buildWall("wSouth", 0, -18, 36, 0.8);
-            buildWall("wEast", 18, 0, 0.8, 36);
-            buildWall("wWest", -18, 0, 0.8, 36);
+            createBoxWall(0, 20, 40, 1);
+            createBoxWall(0, -20, 40, 1);
+            createBoxWall(20, 0, 1, 40);
+            createBoxWall(-20, 0, 1, 40);
+            createBoxWall(-8, 5, 1, 15);
+            createBoxWall(8, -5, 1, 15);
 
-            // Corridor & Room Partitions
-            buildWall("wPart1", -6, 6, 0.8, 24);
-            buildWall("wPart2", 6, -6, 0.8, 24);
-
-            // --- Interactive Objects & Keys ---
-            // Shrine Key (Mission 1)
+            // --- Collectible Golden Keys ---
             const keyMat = new BABYLON.StandardMaterial("keyMat", scene);
             keyMat.emissiveColor = new BABYLON.Color3(1, 0.8, 0);
-            keyItemMesh = BABYLON.MeshBuilder.CreateTorus("shrineKey", { diameter: 0.4, thickness: 0.1 }, scene);
-            keyItemMesh.position = new BABYLON.Vector3(-12, 1.1, 10);
-            keyItemMesh.material = keyMat;
 
-            // Ritual Door (Mission 3 Exit)
-            const doorMat = new BABYLON.StandardMaterial("doorMat", scene);
-            doorMat.diffuseColor = new BABYLON.Color3(0.3, 0, 0);
-            doorMat.emissiveColor = new BABYLON.Color3(0.1, 0, 0);
-            ritualDoorMesh = BABYLON.MeshBuilder.CreateBox("ritualDoor", { width: 3.5, height: 3.8, depth: 0.4 }, scene);
-            ritualDoorMesh.position = new BABYLON.Vector3(0, 1.9, 17.5);
-            ritualDoorMesh.material = doorMat;
+            const keyPositions = [
+                new BABYLON.Vector3(-12, 1, 8),
+                new BABYLON.Vector3(12, 1, -8),
+                new BABYLON.Vector3(0, 1, 15)
+            ];
 
-            // Lost Talisman of Light (Mission 3)
-            const talismanMat = new BABYLON.StandardMaterial("talismanMat", scene);
-            talismanMat.emissiveColor = new BABYLON.Color3(0, 0.8, 1);
-            talismanMesh = BABYLON.MeshBuilder.CreateCylinder("talisman", { diameter: 0.5, height: 0.1 }, scene);
-            talismanMesh.position = new BABYLON.Vector3(12, 1.1, -12);
-            talismanMesh.material = talismanMat;
+            keyPositions.forEach(pos => {
+                let keyMesh = BABYLON.MeshBuilder.CreatePolyhedron("key", { type: 1, size: 0.35 }, scene);
+                keyMesh.position = pos;
+                keyMesh.material = keyMat;
+                keysArray.push(keyMesh);
+            });
 
-            // --- First-Person Martial Arts Fist Meshes ---
+            // --- Player Fist Mesh ---
             const fistMat = new BABYLON.StandardMaterial("fistMat", scene);
-            fistMat.diffuseColor = new BABYLON.Color3(0.4, 0.25, 0.18);
+            fistMat.diffuseColor = new BABYLON.Color3(0.5, 0.3, 0.25);
 
-            rightFist = BABYLON.MeshBuilder.CreateBox("rightFist", { width: 0.16, height: 0.16, depth: 0.35 }, scene);
-            rightFist.position = new BABYLON.Vector3(0.35, -0.3, 0.6);
-            rightFist.parent = camera;
-            rightFist.material = fistMat;
+            const fist = BABYLON.MeshBuilder.CreateBox("fist", { width: 0.18, height: 0.18, depth: 0.35 }, scene);
+            fist.position = new BABYLON.Vector3(0.35, -0.25, 0.6);
+            fist.parent = camera;
+            fist.material = fistMat;
 
-            leftFist = BABYLON.MeshBuilder.CreateBox("leftFist", { width: 0.16, height: 0.16, dep
+            // --- Ghost Demon Mesh ---
+            const demonMat = new BABYLON.StandardMaterial("demonMat", scene);
+            demonMat.diffuseColor = new BABYLON.Color3(0.05, 0, 0);
+            demonMat.emissiveColor = new BABYLON.Color3(0.4, 0, 0);
+
+            const ghost = BABYLON.MeshBuilder.CreateCylinder("ghost", { height: 2.2, diameter: 0.9 }, scene);
+            ghost.position = new BABYLON.Vector3(0, 1.1, 10);
+            ghost.material = demonMat;
+
+            // Red Eyes
+            const eyeMat = new BABYLON.StandardMaterial("eyeMat", scene);
+            eyeMat.emissiveColor = new BABYLON.Color3(1, 0, 0);
+            
+            const e1 = BABYLON.MeshBuilder.CreateSphere("e1", { diameter: 0.15 }, scene);
+            e1.position = new BABYLON.Vector3(-0.2, 0.6, -0.4);
+            e1.parent = ghost;
+            e1.material = eyeMat;
+
+            const e2 = BABYLON.MeshBuilder.CreateSphere("e2", { diameter: 0.15 }, scene);
+            e2.position = new BABYLON.Vector3(0.2, 0.6, -0.4);
+            e2.parent = ghost;
+            e2.material = eyeMat;
+
+            return { scene, camera, flashlight, fist, ghost };
+        };
+
+        const game = createScene();
+        let { scene, camera, flashlight, fist, ghost } = game;
+
+        // --- Start Overlay Click Handler ---
+        const startBtn = document.getElementById("startBtn");
+        const blocker = document.getElementById("blocker");
+        const hudOverlay = document.getElementById("hudOverlay");
+
+        startBtn.addEventListener("click", () => {
+            SoundEngine.init();
+            blocker.style.display = "none";
+            hudOverlay.style.display = "block";
+            engine.resize();
+        });
+
+        // --- Touch Control System ---
+        let joyX = 0, joyY = 0;
+        let joyTouchId = null;
+
+        const joystickZone = document.getElementById("joystickZone");
+        const joystickKnob = document.getElementById("joystickKnob");
+        const cameraTouchZone = document.getElementById("cameraTouchZone");
+
+        joystickZone.addEventListener("touchstart", (e) => {
+            SoundEngine.init();
+            let touch = e.changedTouches[0];
+            joyTouchId = touch.identifier;
+        }, false);
+
+        window.addEventListener("touchmove", (e) => {
+            for (let i = 0; i < e.touches.length; i++) {
+                let touch = e.touches[i];
+                if (touch.identifier === joyTouchId) {
+                    let rect = joystickZone.getBoundingClientRect();
+                    let cx = rect.left + rect.width / 2;
+                    let cy = rect.top + rect.height / 2;
+                    
+                    let dx = touch.clientX - cx;
+                    let dy = touch.clientY - cy;
+                    let dist = Math.min(Math.hypot(dx, dy), 40);
+                    let angle = Math.atan2(dy, dx);
+
+                    joyX = (Math.cos(angle) * dist) / 40;
+                    joyY = (Math.sin(angle) * dist) / 40;
+
+                    joystickKnob.style.transform = `translate(${joyX * 25}px, ${joyY * 25}px)`;
+                }
+            }
+        }, false);
+
+        const resetJoy = (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joyTouchId) {
+                    joyX = 0; joyY = 0;
+                    joyTouchId = null;
+                    joystickKnob.style.transform = `translate(0px, 0px)`;
+                }
+            }
+        };
+        window.addEventListener("touchend", resetJoy, false);
+        window.addEventListener("touchcancel", resetJoy, false);
+
+        // Right Screen Look Camera Drag
+        let lastX = 0, lastY = 0;
+        cameraTouchZone.addEventListener("touchstart", (e) => {
+            SoundEngine.init();
+            let touch = e.changedTouches[0];
+            lastX = touch.clientX;
+            lastY = touch.clientY;
+        }, false);
+
+        cameraTouchZone.addEventListener("touchmove", (e) => {
+            let touch = e.changedTouches[0];
+            let dx = touch.clientX - lastX;
+            let dy = touch.clientY - lastY;
+
+            camera.rotation.y += dx * 0.005;
+            camera.rotation.x += dy * 0.005;
+            camera.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, camera.rotation.x));
+
+            lastX = touch.clientX;
+            lastY = touch.clientY;
+        }, false);
+
+        // --- Action Buttons ---
+        let isAttacking = false;
+        document.getElementById("btnAttack").addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            SoundEngine.init();
+            if (isAttacking) return;
+            isAttacking = true;
+            SoundEngine.playStrike();
+
+            let progress = 0;
+            let pInterval = setInterval(() => {
+                progress += 0.2;
+                fist.position.z = 0.6 + Math.sin(progress * Math.PI) * 0.45;
+                
+                if (progress >= 1.0) {
+                    clearInterval(pInterval);
+                    fist.position.set(0.35, -0.25, 0.6);
+                    isAttacking = false;
+                }
+            }, 20);
+
+            // Punch hit check against ghost
+            if (BABYLON.Vector3.Distance(camera.position, ghost.position) < 3.0) {
+                SoundEngine.playHit();
+                let pushDir = ghost.position.subtract(camera.position).normalize();
+                ghost.position.addInPlace(pushDir.scale(3.5));
+            }
+        }, false);
+
+        let isJumping = false;
+        document.getElementById("btnJump").addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            SoundEngine.init();
+            if (isJumping) return;
+            isJumping = true;
+            let vel = 0.14;
+            let jInterval = setInterval(() => {
+                camera.position.y += vel;
+                vel -= 0.015;
+                if (camera.position.y <= 1.7) {
+                    camera.position.y = 1.7;
+                    isJumping = false;
+                    clearInterval(jInterval);
+                }
+            }, 20);
+        }, false);
+
+        document.getElementById("btnLight").addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            SoundEngine.init();
+            SoundEngine.playClick();
+            flashlight.enabled = !flashlight.enabled;
+        }, false);
+
+        // --- Main Game Loop ---
+        engine.runRenderLoop(function () {
+            if (blocker.style.display !== "none") return;
+
+            // Player Joystick Movement
+            if (Math.abs(joyX) > 0.05 || Math.abs(joyY) > 0.05) {
+                let speed = 0.085;
+                let forward = camera.getDirection(BABYLON.Axis.Z);
+                let right = camera.getDirection(BABYLON.Axis.X);
+
+                forward.y = 0; right.y = 0;
+                forward.normalize(); right.normalize();
+
+                let moveVec = forward.scale(-joyY * speed).add(right.scale(joyX * speed));
+       
