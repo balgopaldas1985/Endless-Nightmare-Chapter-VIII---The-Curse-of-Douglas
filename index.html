@@ -1,0 +1,524 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Endless Nightmare VIII: The Curse of Douglas</title>
+    
+    <!-- Babylon.js Core, Loaders & Materials -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+    <script src="https://cdn.babylonjs.com/proceduralTextures/babylonjs.proceduralTextures.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
+            touch-action: none;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* HUD & Overlay System */
+        #uiOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Top HUD Bar */
+        #hudHeader {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            color: #ff3333;
+            text-shadow: 0 0 8px #ff0000;
+        }
+
+        .hud-panel {
+            background: rgba(10, 0, 0, 0.75);
+            padding: 10px 14px;
+            border: 1px solid #770000;
+            border-radius: 6px;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.2);
+        }
+
+        .bar-container {
+            width: 160px;
+            height: 12px;
+            background: rgba(30, 0, 0, 0.8);
+            border: 1px solid #ff3333;
+            border-radius: 3px;
+            margin-top: 4px;
+            overflow: hidden;
+        }
+
+        #healthBar {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #880000, #ff3333);
+            transition: width 0.2s ease-out;
+        }
+
+        #batteryBar {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #0088aa, #00f0ff);
+            transition: width 0.2s ease-out;
+        }
+
+        /* Mission Objective Display */
+        #missionTracker {
+            position: absolute;
+            top: 85px;
+            left: 15px;
+            color: #ffcc00;
+            background: rgba(15, 10, 0, 0.85);
+            padding: 8px 12px;
+            border-left: 4px solid #ffcc00;
+            font-size: 13px;
+            border-radius: 0 6px 6px 0;
+            max-width: 280px;
+            text-shadow: 0 0 5px rgba(255, 204, 0, 0.5);
+        }
+
+        /* Crosshair */
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 6px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 4px #ffffff;
+        }
+
+        /* Mobile Controls Overlay */
+        #joystickZone {
+            position: absolute;
+            bottom: 25px;
+            left: 25px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(255, 50, 50, 0.3);
+            border-radius: 50%;
+            pointer-events: auto;
+        }
+
+        #joystickKnob {
+            position: absolute;
+            top: 35px;
+            left: 35px;
+            width: 50px;
+            height: 50px;
+            background: rgba(200, 0, 0, 0.6);
+            border: 2px solid #ff3333;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #ff0000;
+        }
+
+        #cameraZone {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 55%;
+            height: 100%;
+            pointer-events: auto;
+        }
+
+        /* Touch Action Buttons */
+        .action-btn {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(20, 0, 0, 0.8);
+            border: 2px solid #ff3333;
+            color: #fff;
+            font-weight: bold;
+            font-size: 11px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            box-shadow: 0 0 12px rgba(255, 0, 0, 0.4);
+            text-shadow: 0 0 5px #ff0000;
+        }
+
+        .action-btn:active {
+            background: #aa0000;
+            transform: scale(0.92);
+        }
+
+        #btnKungFu { bottom: 35px; right: 35px; width: 85px; height: 85px; font-size: 13px; border-color: #ffcc00; color: #ffcc00; box-shadow: 0 0 15px rgba(255, 204, 0, 0.5); }
+        #btnCrouch { bottom: 135px; right: 25px; width: 65px; height: 65px; }
+        #btnJump { bottom: 40px; right: 135px; width: 65px; height: 65px; }
+        #btnFlashlight { bottom: 135px; right: 105px; width: 65px; height: 65px; border-color: #00f0ff; color: #00f0ff; }
+
+        /* Start Screen / Game Over Screens */
+        .modal-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 0, 0, 0.95);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #ff3333;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .modal-screen h1 {
+            font-size: 2.5rem;
+            letter-spacing: 3px;
+            text-shadow: 0 0 20px #ff0000;
+            margin-bottom: 10px;
+        }
+
+        .modal-screen p {
+            color: #ccc;
+            max-width: 500px;
+            line-height: 1.5;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+
+        .primary-btn {
+            padding: 14px 28px;
+            background: #550000;
+            border: 2px solid #ff3333;
+            color: #fff;
+            font-size: 1.1rem;
+            font-family: inherit;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            box-shadow: 0 0 15px #ff0000;
+            transition: all 0.2s;
+        }
+
+        .primary-btn:hover, .primary-btn:active {
+            background: #ff0000;
+            color: #000;
+            box-shadow: 0 0 25px #ff0000;
+        }
+
+        #jumpscareOverlay {
+            display: none;
+            background: #000;
+        }
+
+        #jumpscareFace {
+            font-size: 8rem;
+            animation: shake 0.1s infinite;
+        }
+
+        @keyframes shake {
+            0% { transform: translate(2px, 2px) rotate(0deg); }
+            50% { transform: translate(-3px, -2px) rotate(3deg); }
+            100% { transform: translate(1px, -1px) rotate(-2deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 3D WebGL Canvas -->
+    <canvas id="renderCanvas"></canvas>
+
+    <!-- UI Overlay -->
+    <div id="uiOverlay">
+        <div id="hudHeader">
+            <div class="hud-panel">
+                <div style="font-size: 11px; font-weight: bold;">VITALS</div>
+                <div class="bar-container"><div id="healthBar"></div></div>
+            </div>
+            <div class="hud-panel" style="text-align: right;">
+                <div style="font-size: 11px; font-weight: bold; color: #00f0ff;">FLASHLIGHT</div>
+                <div class="bar-container"><div id="batteryBar"></div></div>
+            </div>
+        </div>
+
+        <div id="missionTracker">
+            <div style="font-size: 10px; color: #aaa;">OBJECTIVE:</div>
+            <div id="objectiveText">Mission 1: Find the Old Master's Shrine Key.</div>
+        </div>
+
+        <div id="crosshair"></div>
+
+        <!-- Touch Controls -->
+        <div id="joystickZone"><div id="joystickKnob"></div></div>
+        <div id="cameraZone"></div>
+
+        <button id="btnKungFu" class="action-btn">MARTIAL<br>STRIKE</button>
+        <button id="btnCrouch" class="action-btn">STEALTH</button>
+        <button id="btnJump" class="action-btn">JUMP</button>
+        <button id="btnFlashlight" class="action-btn">LIGHT</button>
+    </div>
+
+    <!-- Start / Story Screen -->
+    <div id="startScreen" class="modal-screen">
+        <h1>ENDLESS NIGHTMARE VIII</h1>
+        <div style="color: #ff9900; font-size: 1.1rem; margin-bottom: 15px;">- THE CURSE OF DOUGLAS -</div>
+        <p>You have awakened inside the Douglas family cursed sanctuary. A bloodthirsty fiend haunts these dark corridors. Use your martial arts strikes, stealth, and flashlight to survive through all 3 missions and escape the curse.</p>
+        <button id="btnStartGame" class="primary-btn">ENTER THE NIGHTMARE</button>
+    </div>
+
+    <!-- Jumpscare / Game Over Screen -->
+    <div id="jumpscareOverlay" class="modal-screen">
+        <div id="jumpscareFace">👺</div>
+        <h1 style="margin-top: 20px;">YOU WERE CONSUMED</h1>
+        <p id="deathReason">The spectral Douglas fiend ambushed you in the dark...</p>
+        <button id="btnRestart" class="primary-btn">RETRY CHAPTER</button>
+    </div>
+
+    <!-- Game Logic Engine Script -->
+    <script>
+        // --- Web Audio API Procedural Horror Synthesizer ---
+        const SoundFX = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            playWindNoise() {
+                if (!this.ctx) return;
+                let bufferSize = this.ctx.sampleRate * 2;
+                let buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                let output = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    output[i] = Math.random() * 2 - 1;
+                }
+                let whiteNoise = this.ctx.createBufferSource();
+                whiteNoise.buffer = buffer;
+                whiteNoise.loop = true;
+
+                let filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(300, this.ctx.currentTime);
+                filter.Q.setValueAtTime(3.0, this.ctx.currentTime);
+
+                let gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+
+                whiteNoise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                whiteNoise.start();
+            },
+            playKungFuStrike() {
+                if (!this.ctx) return;
+                let osc = this.ctx.createOscillator();
+                let gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(350, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(60, this.ctx.currentTime + 0.18);
+                gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.18);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.18);
+            },
+            playHitImpact() {
+                if (!this.ctx) return;
+                let osc = this.ctx.createOscillator();
+                let gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.25);
+                gain.gain.setValueAtTime(0.9, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.25);
+            },
+            playFlashlightToggle() {
+                if (!this.ctx) return;
+                let osc = this.ctx.createOscillator();
+                let gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(1000, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.04);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.04);
+            },
+            playJumpscareScream() {
+                if (!this.ctx) return;
+                let osc = this.ctx.createOscillator();
+                let gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(200, this.ctx.currentTime + 0.8);
+                gain.gain.setValueAtTime(1.0, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.8);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.8);
+            },
+            playPickupKey() {
+                if (!this.ctx) return;
+                let osc = this.ctx.createOscillator();
+                let gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, this.ctx.currentTime); // D5
+                osc.frequency.setValueAtTime(880, this.ctx.currentTime + 0.1); // A5
+                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.3);
+            }
+        };
+
+        // --- 3D Babylon.js Game State & Variables ---
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+
+        let scene, camera, flashlight;
+        let rightFist, leftFist;
+        let ghostEntity, ghostHealth = 100;
+        let keyItemMesh, talismanMesh, ritualDoorMesh;
+        
+        // Gameplay Variables
+        let currentMission = 1; // 1: Key Search, 2: Defeat Fiend, 3: Escape Ritual Door
+        let playerHealth = 100;
+        let batteryPower = 100;
+        let isCrouching = false;
+        let isAttacking = false;
+        let hasShrineKey = false;
+        let hasTalisman = false;
+        let isGameActive = false;
+
+        // Mobile Controls Variables
+        let joyX = 0, joyY = 0;
+        let joyTouchId = null;
+
+        const createHorrorScene = function () {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color3(0.01, 0.01, 0.02);
+            
+            // Atmospheric Horror Fog
+            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+            scene.fogDensity = 0.07;
+            scene.fogColor = new BABYLON.Color3(0.01, 0.01, 0.02);
+
+            // First Person Camera
+            camera = new BABYLON.UniversalCamera("playerCam", new BABYLON.Vector3(0, 1.7, -12), scene);
+            camera.minZ = 0.2;
+            camera.fov = 1.1;
+
+            // Flashlight Cone Light
+            flashlight = new BABYLON.SpotLight("flashlight", new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0, 0, 1), Math.PI / 3.2, 18, scene);
+            flashlight.intensity = 2.8;
+            flashlight.diffuse = new BABYLON.Color3(1, 0.85, 0.65);
+            flashlight.parent = camera;
+
+            // Dim Horror Ambient Light
+            const ambientLight = new BABYLON.HemisphericLight("ambientLight", new BABYLON.Vector3(0, 1, 0), scene);
+            ambientLight.intensity = 0.12;
+            ambientLight.diffuse = new BABYLON.Color3(0.2, 0.1, 0.1);
+
+            // --- 3D Mansion Architecture ---
+            const floorMat = new BABYLON.StandardMaterial("floorMat", scene);
+            floorMat.diffuseColor = new BABYLON.Color3(0.12, 0.1, 0.08);
+            floorMat.roughness = 0.9;
+
+            const wallMat = new BABYLON.StandardMaterial("wallMat", scene);
+            wallMat.diffuseColor = new BABYLON.Color3(0.18, 0.12, 0.12);
+            wallMat.roughness = 0.85;
+
+            // Floor & Ceiling
+            const floor = BABYLON.MeshBuilder.CreateGround("floor", { width: 36, height: 36 }, scene);
+            floor.material = floorMat;
+
+            const ceiling = BABYLON.MeshBuilder.CreateGround("ceiling", { width: 36, height: 36 }, scene);
+            ceiling.position.y = 4.2;
+            ceiling.rotation.x = Math.PI;
+            ceiling.material = wallMat;
+
+            // Wall Construction Helper
+            const buildWall = (name, x, z, w, d) => {
+                let wall = BABYLON.MeshBuilder.CreateBox(name, { width: w, height: 4.2, depth: d }, scene);
+                wall.position = new BABYLON.Vector3(x, 2.1, z);
+                wall.material = wallMat;
+                return wall;
+            };
+
+            // Outer Mansion Walls
+            buildWall("wNorth", 0, 18, 36, 0.8);
+            buildWall("wSouth", 0, -18, 36, 0.8);
+            buildWall("wEast", 18, 0, 0.8, 36);
+            buildWall("wWest", -18, 0, 0.8, 36);
+
+            // Corridor & Room Partitions
+            buildWall("wPart1", -6, 6, 0.8, 24);
+            buildWall("wPart2", 6, -6, 0.8, 24);
+
+            // --- Interactive Objects & Keys ---
+            // Shrine Key (Mission 1)
+            const keyMat = new BABYLON.StandardMaterial("keyMat", scene);
+            keyMat.emissiveColor = new BABYLON.Color3(1, 0.8, 0);
+            keyItemMesh = BABYLON.MeshBuilder.CreateTorus("shrineKey", { diameter: 0.4, thickness: 0.1 }, scene);
+            keyItemMesh.position = new BABYLON.Vector3(-12, 1.1, 10);
+            keyItemMesh.material = keyMat;
+
+            // Ritual Door (Mission 3 Exit)
+            const doorMat = new BABYLON.StandardMaterial("doorMat", scene);
+            doorMat.diffuseColor = new BABYLON.Color3(0.3, 0, 0);
+            doorMat.emissiveColor = new BABYLON.Color3(0.1, 0, 0);
+            ritualDoorMesh = BABYLON.MeshBuilder.CreateBox("ritualDoor", { width: 3.5, height: 3.8, depth: 0.4 }, scene);
+            ritualDoorMesh.position = new BABYLON.Vector3(0, 1.9, 17.5);
+            ritualDoorMesh.material = doorMat;
+
+            // Lost Talisman of Light (Mission 3)
+            const talismanMat = new BABYLON.StandardMaterial("talismanMat", scene);
+            talismanMat.emissiveColor = new BABYLON.Color3(0, 0.8, 1);
+            talismanMesh = BABYLON.MeshBuilder.CreateCylinder("talisman", { diameter: 0.5, height: 0.1 }, scene);
+            talismanMesh.position = new BABYLON.Vector3(12, 1.1, -12);
+            talismanMesh.material = talismanMat;
+
+            // --- First-Person Martial Arts Fist Meshes ---
+            const fistMat = new BABYLON.StandardMaterial("fistMat", scene);
+            fistMat.diffuseColor = new BABYLON.Color3(0.4, 0.25, 0.18);
+
+            rightFist = BABYLON.MeshBuilder.CreateBox("rightFist", { width: 0.16, height: 0.16, depth: 0.35 }, scene);
+            rightFist.position = new BABYLON.Vector3(0.35, -0.3, 0.6);
+            rightFist.parent = camera;
+            rightFist.material = fistMat;
+
+            leftFist = BABYLON.MeshBuilder.CreateBox("leftFist", { width: 0.16, height: 0.16, dep
